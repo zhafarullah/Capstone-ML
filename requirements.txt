@@ -1,0 +1,8 @@
+# requirements.txt
+numpy==1.23.5
+pandas
+gensim
+nltk
+scikit-learn
+rapidfuzz
+joblib
