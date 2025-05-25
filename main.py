@@ -190,23 +190,43 @@ def main():
         print("Maaf, tidak ada resep yang cocok.")
         return
 
-    for _, row in res.iterrows():
-        print(f"\n=== {row['Title_Cleaned']} ===\n")
-        print("Instructions:")
-        instr = row['Instructions_Cleaned'].strip()
-        parts = split_pattern.split(instr)
-        for part in parts:
-            sent = part.strip().rstrip('.')
-            if not sent:
-                continue
-            wrapped = textwrap.fill(sent, width=80)
-            for i, line in enumerate(wrapped.split('\n')):
-                prefix = "- " if i == 0 else "  "
-                print(f"  {prefix}{line}")
-        print("\nIngredients:")
-        for ing in row['Cleaned_Ingredients']:
-            print(f"  - {ing}")
-        print("\n" + "="*40)
+    # Tampilkan hanya angka dan judul
+    print("\nResep yang cocok ditemukan:")
+    indexed_res = res.reset_index(drop=True)
+    for i, row in indexed_res.iterrows():
+        print(f"{i + 1}. {row['Title_Cleaned']}")
+
+    # Input pilihan pengguna
+    while True:
+        try:
+            pilihan = int(input("\nMasukkan nomor resep yang ingin dilihat: "))
+            if 1 <= pilihan <= len(indexed_res):
+                break
+            else:
+                print("Nomor tidak valid. Coba lagi.")
+        except ValueError:
+            print("Input harus berupa angka.")
+
+    # Tampilkan resep terpilih
+    row = indexed_res.iloc[pilihan - 1]
+    print(f"\n=== {row['Title_Cleaned']} ===\n")
+
+    print("Instructions:")
+    instr = row['Instructions_Cleaned'].strip()
+    parts = split_pattern.split(instr)
+    for part in parts:
+        sent = part.strip().rstrip('.')
+        if not sent:
+            continue
+        wrapped = textwrap.fill(sent, width=80)
+        for i, line in enumerate(wrapped.split('\n')):
+            prefix = "- " if i == 0 else "  "
+            print(f"  {prefix}{line}")
+
+    print("\nIngredients:")
+    for ing in row['Cleaned_Ingredients']:
+        print(f"  - {ing}")
+    print("\n" + "=" * 40)
 
 if __name__ == "__main__":
     main()
