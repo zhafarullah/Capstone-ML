@@ -7,3 +7,5 @@ https://www.kaggle.com/datasets/pes12017000148/food-ingredients-and-recipe-datas
 2. .venv\Scripts\activate
 3. pip install -r requirements.txt
 4. jalankan "python app.py"
+
+## Link file lengkap https://drive.google.com/file/d/1U6MBrwnzWR4xiSGEWBM_q3kJffIhCvtE/view?usp=sharing
