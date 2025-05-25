@@ -3,3 +3,4 @@ nama_file.csv
 gen_req.py
 /static/images/
 features.pkl
+__pycache__
