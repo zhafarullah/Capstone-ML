@@ -182,7 +182,11 @@ def recommend_recipes(text, top_n=5, fuzzy_threshold=75):
     return df_meta[df_meta['Title_Cleaned'].isin(common)].head(top_n)
 # — Main program: input dan cetak hasil rekomendasi
 def main():
+    # 1) Input & parsing bahan user
     text = input("Masukkan bahan makanan: ")
+    input_items = parse_ingredients(text)
+
+    # 2) Rekomendasi resep
     res = recommend_recipes(text, top_n=5)
     split_pattern = re.compile(r'(?<!\b\d)(?<!tsp)(?<!tbsp)\.\s+')
 
@@ -190,43 +194,118 @@ def main():
         print("Maaf, tidak ada resep yang cocok.")
         return
 
-    # Tampilkan hanya angka dan judul
+    # 3) Tampilkan daftar singkat resep
     print("\nResep yang cocok ditemukan:")
     indexed_res = res.reset_index(drop=True)
     for i, row in indexed_res.iterrows():
-        print(f"{i + 1}. {row['Title_Cleaned']}")
+        print(f"{i+1}. {row['Title_Cleaned']}")
 
-    # Input pilihan pengguna
+    # 4) User pilih resep
     while True:
         try:
             pilihan = int(input("\nMasukkan nomor resep yang ingin dilihat: "))
             if 1 <= pilihan <= len(indexed_res):
                 break
-            else:
-                print("Nomor tidak valid. Coba lagi.")
+            print("Nomor tidak valid. Coba lagi.")
         except ValueError:
             print("Input harus berupa angka.")
+    row = indexed_res.iloc[pilihan-1]
+    selected_title = row['Title_Cleaned']
 
-    # Tampilkan resep terpilih
-    row = indexed_res.iloc[pilihan - 1]
-    print(f"\n=== {row['Title_Cleaned']} ===\n")
-
+    # 5) Cetak detail resep
+    print(f"\n=== {selected_title} ===\n")
     print("Instructions:")
     instr = row['Instructions_Cleaned'].strip()
-    parts = split_pattern.split(instr)
-    for part in parts:
+    for part in split_pattern.split(instr):
         sent = part.strip().rstrip('.')
         if not sent:
             continue
         wrapped = textwrap.fill(sent, width=80)
-        for i, line in enumerate(wrapped.split('\n')):
-            prefix = "- " if i == 0 else "  "
+        for j, line in enumerate(wrapped.split('\n')):
+            prefix = "- " if j == 0 else "  "
             print(f"  {prefix}{line}")
 
     print("\nIngredients:")
     for ing in row['Cleaned_Ingredients']:
         print(f"  - {ing}")
-    print("\n" + "=" * 40)
+
+    # 6) Hitung stok user (base unit)
+    input_amounts = {}
+    for it in input_items:
+        qty = parse_number(it['quantity'])
+        unit = (it['unit'] or '').lower()
+        if qty is None or unit not in UNIT_FACTORS:
+            continue
+        input_amounts.setdefault(it['ingredient'], 0.0)
+        input_amounts[it['ingredient']] += qty * UNIT_FACTORS[unit]
+
+    # 7) Ambil kebutuhan resep dari df_exploded
+    df_sel = df_exploded[df_exploded['Title_Cleaned'] == selected_title].copy()
+    df_sel['factor'] = df_sel['unit'].str.lower().map(UNIT_FACTORS)
+    df_sel = df_sel[df_sel['factor'].notna()]
+    df_sel['required_base'] = df_sel['quantity'] * df_sel['factor']
+
+    # 8) Siapkan used_amounts per pure_name
+    used_amounts = df_sel.groupby('pure_name')['required_base'].sum().to_dict()
+
+    # 9) Hitung & tampilkan bahan tersisa
+    leftovers = []
+    for inp_name, avail_base in input_amounts.items():
+        # cari match terbaik di used_amounts
+        match, score, _ = process.extractOne(inp_name,
+                                             list(used_amounts),
+                                             scorer=fuzz.token_set_ratio)
+        required = used_amounts[match] if score >= 60 else 0.0
+        sisa_base = avail_base - required
+        if sisa_base > 0:
+            orig_unit = next((it['unit'] for it in input_items if it['ingredient'] == inp_name), None)
+            if orig_unit and orig_unit.lower() in UNIT_FACTORS:
+                sisa_qty = sisa_base / UNIT_FACTORS[orig_unit.lower()]
+                leftovers.append(f"{sisa_qty:.2f} {orig_unit} {inp_name}")
+            else:
+                leftovers.append(f"{sisa_base:.2f} base-unit {inp_name}")
+
+    if leftovers:
+        print("\nBahan kamu masih tersisa:")
+        for item in leftovers:
+            print(f"  - {item}")
+
+    # 10) Hitung & tampilkan bahan yang kurang
+    df_group = (
+        df_sel
+        .groupby('pure_name')
+        .agg({
+            'required_base': 'sum',
+            'unit':         lambda s: s.iloc[0],
+            'factor':       lambda s: s.iloc[0]
+        })
+        .reset_index()
+    )
+    missing = []
+    for _, r in df_group.iterrows():
+        name     = r['pure_name']
+        req_base = r['required_base']
+        unit     = r['unit']
+        factor   = r['factor']
+
+        # cari berapa yang user punya (fuzzy-match)
+        match, score, _ = process.extractOne(name,
+                                             list(input_amounts),
+                                             scorer=fuzz.token_set_ratio)
+        avail = input_amounts[match] if score >= 60 else 0.0
+
+        if avail < req_base:
+            short_base = req_base - avail
+            short_qty  = short_base / factor
+            missing.append(f"{short_qty:.2f} {unit} {name}")
+
+    if missing:
+        print("\nBahan yang kamu kurang:")
+        for item in missing:
+            print(f"  - {item}")
+
+    print("\n" + "="*40)
+
 
 if __name__ == "__main__":
     main()
