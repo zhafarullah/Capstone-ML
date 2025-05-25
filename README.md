@@ -5,3 +5,4 @@
 5. main.py: user input bahan
 6. all_carbon.csv: dataset karbon dari setiap food item atau bahan
 7. nama_file.csv: dataset resep bersih dari NLP dan sudah ditambahkan 2 kolom baru yaitu carbon_score (jumlah karbon sesuai kuantitas bahan), total_recipe_carbon (jumlah karbon resep dari setiap bahan)
+8. link dataset resep yang sudah dihitung karbonnya: https://drive.google.com/drive/u/7/folders/1la7r2U0dBTddq9tm3elTnQvdKXzxfirs
