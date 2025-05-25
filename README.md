@@ -1,4 +1,7 @@
-﻿# Capstone-NLP
-Jalankan Main.py dan buat seluruh file lainnya berada di satu folder yang sama
-download file csv berikut dan letakkan di folder yang sama dengan main.py  
-[Link Dataset](https://drive.google.com/file/d/1Y3EO2xEUxNZf02yUUYEf6H6xO3zhpNHY/view)
+1. inference.py: tes model
+2. parser.py: arsing input user, kayak satuan unit nya
+3. carbon_calculator.py: perhitungan karbon dari input user
+4. recipe_carbon.py: perhitungan karbon untuk resep
+5. main.py: user input bahan
+6. all_carbon.csv: dataset karbon dari setiap food item atau bahan
+7. nama_file.csv: dataset resep bersih dari NLP dan sudah ditambahkan 2 kolom baru yaitu carbon_score (jumlah karbon sesuai kuantitas bahan), total_recipe_carbon (jumlah karbon resep dari setiap bahan)
