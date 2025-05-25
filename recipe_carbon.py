@@ -2,7 +2,7 @@ import pandas as pd
 from inference import estimate_carbon_from_item
 from parser import unit_conversion
 
-def calculate_carbon_from_recipe_file(csv_path="clean_recipes.csv", output_path="carbon_recipe.csv"):
+def calculate_carbon_from_recipe_file(csv_path="nama_file.csv"):
     df = pd.read_csv(csv_path)
     results = []
 
@@ -11,6 +11,7 @@ def calculate_carbon_from_recipe_file(csv_path="clean_recipes.csv", output_path=
 
         # Lewatkan jika tidak valid
         if pd.isna(ingredient) or not isinstance(ingredient, str):
+            results.append(None)
             continue
 
         quantity = float(row["quantity"])
@@ -18,6 +19,7 @@ def calculate_carbon_from_recipe_file(csv_path="clean_recipes.csv", output_path=
 
         # Lewatkan jika quantity tidak valid
         if pd.isna(quantity):
+            results.append(None)
             continue
 
         unit = str(unit).lower()
@@ -29,39 +31,19 @@ def calculate_carbon_from_recipe_file(csv_path="clean_recipes.csv", output_path=
         qty_kg = quantity / 1000
         est = estimate_carbon_from_item(ingredient)
         carbon = round(qty_kg * est['carbon_footprint'], 4)
+        results.append(carbon)
 
-        results.append({
-        "recipe_id": row["Unnamed: 0"],
-        "title": row["Title"],
-        "ingredient": ingredient,
-        "quantity": round(quantity),
-        "unit": "gram",
-        "carbon_item": est['carbon_footprint'],  # nilai estimasi
-        "carbon_score": carbon,  # nilai dikali kuantitas
-        "matched_items": est.get("matched_to", ""),
-        "estimated_items": est.get("method", "")
-    })
+    # Tambahkan kolom perhitungan karbon per bahan
+    df["carbon_score"] = results
 
+    # Hitung total karbon per resep berdasarkan kolom "0" dan "Title"
+    df["total_recipe_carbon"] = df.groupby(["Unnamed: 0", "Title"])["carbon_score"].transform("sum").round(3)
 
-    df_result = pd.DataFrame(results)
+    # Simpan ke file yang sama
+    df.to_csv(csv_path, index=False)
+    print(f"Hasil perhitungan disimpan ke: {csv_path}")
 
-    # Hitung total karbon per resep
-    total_carbon = df_result.groupby(["recipe_id", "title"])["carbon_score"].sum().reset_index()
-    total_carbon = total_carbon.rename(columns={"carbon_score": "total_recipe_carbon"})
-
-    # Gabungkan hasil total dengan detail bahan
-    merged = pd.merge(df_result, total_carbon, on=["recipe_id", "title"])
-
-    merged["carbon_item"] = merged["carbon_item"].round(3)
-    merged["carbon_score"] = merged["carbon_score"].round(3)
-    merged["total_recipe_carbon"] = merged["total_recipe_carbon"].round(3)
-
-    # Simpan ke CSV
-    columns_to_save = merged.drop(columns=["matched_items", "estimated_items"])
-    columns_to_save.to_csv(output_path, index=False)
-    print(f"Hasil perhitungan disimpan ke: {output_path}")
-
-    return merged
+    return df
 
 if __name__ == "__main__":
     calculate_carbon_from_recipe_file()
