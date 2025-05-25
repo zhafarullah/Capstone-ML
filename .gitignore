@@ -1,1 +1,3 @@
-.venv
+features.pkl
+/static/images
+/venv/
