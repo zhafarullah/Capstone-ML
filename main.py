@@ -11,7 +11,21 @@ from tensorflow.keras.models import load_model
 import pickle
 from rapidfuzz import fuzz, process
 from carbon_calculator import calculate_total_carbon_from_items
+import gdown
+import os
 
+# ============== AUTO DOWNLOAD CSV BESAR ====================
+def download_nama_file():
+    file_id = "GANTI_DENGAN_FILE_ID_GOOGLE_DRIVE"
+    output = "nama_file.csv"
+    if not os.path.exists(output):
+        print("📥 Mengunduh nama_file.csv dari Google Drive...")
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, output, quiet=False)
+# ===========================================================
+
+# Pastikan file tersedia sebelum dibaca
+download_nama_file()
 
 # — Load machine learning artifacts
 model = load_model('best_ner_bilstm.h5')

@@ -8,3 +8,4 @@ pandas
 tensorflow
 rapidfuzz
 joblib
+gdown

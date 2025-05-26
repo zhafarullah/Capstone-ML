@@ -6,6 +6,19 @@ import nltk; nltk.download("punkt")
 from carbon_calculator import calculate_total_carbon_from_items
 from main import parse_ingredients, recommend_recipes, UNIT_FACTORS  # pastikan fungsi diexport
 
+
+import os
+import gdown
+
+def download_nama_file():
+    file_id = "1Y3EO2xEUxNZf02yUUYEf6H6xO3zhpNHY"  # ganti dengan ID file kamu
+    output = "nama_file.csv"
+
+    if not os.path.exists(output):
+        print("📥 Mengunduh nama_file.csv dari Google Drive...")
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, output, quiet=False)
+
 app = FastAPI()
 
 class IngredientInput(BaseModel):
