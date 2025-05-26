@@ -16,7 +16,7 @@ import os
 
 # ============== AUTO DOWNLOAD CSV BESAR ====================
 def download_nama_file():
-    file_id = "GANTI_DENGAN_FILE_ID_GOOGLE_DRIVE"
+    file_id = "1Y3EO2xEUxNZf02yUUYEf6H6xO3zhpNHY"
     output = "nama_file.csv"
     if not os.path.exists(output):
         print("📥 Mengunduh nama_file.csv dari Google Drive...")
