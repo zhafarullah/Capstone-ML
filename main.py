@@ -10,6 +10,8 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.models import load_model
 import pickle
 from rapidfuzz import fuzz, process
+from carbon_calculator import calculate_total_carbon_from_items
+
 
 # — Load machine learning artifacts
 model = load_model('best_ner_bilstm.h5')
@@ -185,6 +187,10 @@ def main():
     # 1) Input & parsing bahan user
     text = input("Masukkan bahan makanan: ")
     input_items = parse_ingredients(text)
+
+    # 3) Hitung total karbon dari bahan yang diinput
+    total_cf = calculate_total_carbon_from_items(input_items, UNIT_FACTORS)
+    print(f"\nTotal Jejak Karbon dari Bahan: {total_cf} kg CO2")
 
     # 2) Rekomendasi resep
     res = recommend_recipes(text, top_n=5)
