@@ -4,5 +4,5 @@ gen_req.py
 /static/images/
 features.pkl
 __pycache__
-/Matriks Evaluasi/
-/For generating vocab and ner/
+/generating_code/
+/eval_matriks/
