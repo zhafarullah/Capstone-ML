@@ -7,6 +7,8 @@ import gdown
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # ── Setup Logging ─────────────────────────────────────────────
 logging.basicConfig(
@@ -45,6 +47,13 @@ except Exception:
 # ── FastAPI setup ──────────────────────────────────────────────
 app = FastAPI(title="Carbon + Recipe API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # atau masukkan frontend URL Netlify-mu
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 class IngredientInput(BaseModel):
     text: str
 
