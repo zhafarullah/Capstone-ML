@@ -9,7 +9,6 @@ from pydantic import BaseModel
 from typing import Dict
 from fastapi.middleware.cors import CORSMiddleware
 
-
 # ── Setup Logging ─────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -39,6 +38,7 @@ else:
 try:
     from carbon_calculator import calculate_total_carbon_from_items
     from main import parse_ingredients, recommend_recipes, UNIT_FACTORS
+    from logic import process_user_input  # Import fungsi baru dari logic.py
     logger.info("✅ Helpers loaded")
 except Exception:
     logger.exception("❌ Failed to load helpers")
@@ -54,6 +54,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 class IngredientInput(BaseModel):
     text: str
 
@@ -81,3 +82,10 @@ def recipes(input: IngredientInput) -> Dict:
     items = parse_ingredients(input.text)
     recs = recommend_recipes(input.text, top_n=5).to_dict(orient="records")
     return {"items": items, "recipes": recs}
+
+@app.post("/full")
+def full_pipeline(input: IngredientInput) -> Dict:
+    """
+    Jalankan seluruh proses: parsing, karbon, rekomendasi, detail resep, sisa bahan, bahan kurang.
+    """
+    return process_user_input(input.text)
