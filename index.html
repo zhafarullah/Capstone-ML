@@ -34,7 +34,6 @@
         });
         const j = await res.json();
 
-        // Format hasil output
         let output = "";
 
         output += "📦 Parsed Bahan:\n";
@@ -49,24 +48,26 @@
         output += "\n📋 Rekomendasi Resep:\n";
         if (Array.isArray(j.recipes)) {
           j.recipes.forEach((r, idx) => {
-            output += `${idx + 1}. ${r.Title_Cleaned}\n`;
+            output += `${idx + 1}. ${r.Title_Cleaned || r.title || "Tanpa Judul"}\n`;
           });
         }
 
         if (j.selected_recipe) {
-          output += `\n📖 Detail Resep: ${j.selected_recipe.Title_Cleaned || j.selected_recipe.title || "Tanpa Judul"}\n`;
+          const selected = j.selected_recipe;
+          output += `\n📖 Detail Resep: ${selected.Title_Cleaned || selected.title || "Tanpa Judul"}\n`;
 
-
-          if (Array.isArray(j.selected_recipe.Instructions_Cleaned)) {
+          const instructions = selected.Instructions_Cleaned || selected.instructions;
+          if (Array.isArray(instructions)) {
             output += "\n📝 Instructions:\n";
-            j.selected_recipe.Instructions_Cleaned.forEach(step => {
+            instructions.forEach(step => {
               output += `- ${step}\n`;
             });
           }
 
-          if (Array.isArray(j.selected_recipe.Cleaned_Ingredients)) {
+          const ingredients = selected.Cleaned_Ingredients || selected.ingredients;
+          if (Array.isArray(ingredients)) {
             output += "\n🍽 Ingredients:\n";
-            j.selected_recipe.Cleaned_Ingredients.forEach(ing => {
+            ingredients.forEach(ing => {
               output += `- ${ing}\n`;
             });
           }
