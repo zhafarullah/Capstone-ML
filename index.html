@@ -38,36 +38,45 @@
         let output = "";
 
         output += "📦 Parsed Bahan:\n";
-        j.items.forEach(item => {
-          output += `- ${item.quantity} ${item.unit} ${item.ingredient}\n`;
-        });
-
-        output += `\n🌍 Total Jejak Karbon: ${j.total_carbon} kg CO2\n`;
-
-        output += "\n📋 Rekomendasi Resep:\n";
-        j.recipes.forEach((r, idx) => {
-          output += `${idx+1}. ${r.Title_Cleaned}\n`;
-        });
-
-        if (j.selected_recipe) {
-          output += `\n📖 Detail Resep: ${j.selected_recipe.Title_Cleaned}\n`;
-          output += "\n📝 Instructions:\n";
-          j.selected_recipe.Instructions_Cleaned.forEach(step => {
-            output += `- ${step}\n`;
-          });
-
-          output += "\n🍽 Ingredients:\n";
-          j.selected_recipe.Cleaned_Ingredients.forEach(ing => {
-            output += `- ${ing}\n`;
+        if (Array.isArray(j.items)) {
+          j.items.forEach(item => {
+            output += `- ${item.quantity} ${item.unit} ${item.ingredient}\n`;
           });
         }
 
-        if (j.leftovers.length) {
+        output += `\n🌍 Total Jejak Karbon: ${j.total_carbon ?? "?"} kg CO2\n`;
+
+        output += "\n📋 Rekomendasi Resep:\n";
+        if (Array.isArray(j.recipes)) {
+          j.recipes.forEach((r, idx) => {
+            output += `${idx + 1}. ${r.Title_Cleaned}\n`;
+          });
+        }
+
+        if (j.selected_recipe) {
+          output += `\n📖 Detail Resep: ${j.selected_recipe.Title_Cleaned || "Tanpa Judul"}\n`;
+
+          if (Array.isArray(j.selected_recipe.Instructions_Cleaned)) {
+            output += "\n📝 Instructions:\n";
+            j.selected_recipe.Instructions_Cleaned.forEach(step => {
+              output += `- ${step}\n`;
+            });
+          }
+
+          if (Array.isArray(j.selected_recipe.Cleaned_Ingredients)) {
+            output += "\n🍽 Ingredients:\n";
+            j.selected_recipe.Cleaned_Ingredients.forEach(ing => {
+              output += `- ${ing}\n`;
+            });
+          }
+        }
+
+        if (Array.isArray(j.leftovers) && j.leftovers.length) {
           output += "\n🧾 Bahan Tersisa:\n";
           j.leftovers.forEach(l => output += `- ${l}\n`);
         }
 
-        if (j.missing.length) {
+        if (Array.isArray(j.missing) && j.missing.length) {
           output += "\n🛒 Bahan yang Kurang:\n";
           j.missing.forEach(m => output += `- ${m}\n`);
         }
