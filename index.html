@@ -5,48 +5,77 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Carbon & Recipe App</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
+    body { font-family: sans-serif; max-width: 700px; margin: 2rem auto; }
     textarea { width: 100%; height: 100px; }
     button { padding: 0.5rem 1rem; margin: 0.5rem 0; }
-    pre { background: #f4f4f4; padding: 1rem; overflow:auto; }
+    pre { background: #f4f4f4; padding: 1rem; overflow:auto; white-space: pre-wrap; }
   </style>
 </head>
 <body>
   <h1>Carbon & Recipe Calculator</h1>
   <label>Masukkan bahan (contoh: “100 gram chicken, 50 gram rice”):</label>
   <textarea id="inputText"></textarea>
-  <button id="btnCarbon">Hitung Karbon</button>
-  <button id="btnRecipe">Rekomendasi Resep</button>
+  <button id="btnProcess">Proses Lengkap</button>
 
-  <h2>Hasil Parsing & Total Karbon</h2>
-  <pre id="carbonResult">—</pre>
-
-  <h2>Rekomendasi Resep</h2>
-  <pre id="recipeResult">—</pre>
+  <h2>Hasil Lengkap</h2>
+  <pre id="result">—</pre>
 
   <script>
     const baseURL = "https://capstone-ml-production.up.railway.app";
-    document.getElementById("btnCarbon").onclick = async () => {
+
+    document.getElementById("btnProcess").onclick = async () => {
       const text = document.getElementById("inputText").value;
-      const res = await fetch(baseURL + "/carbon", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-      });
-      const j = await res.json();
-      document.getElementById("carbonResult").textContent = 
-        JSON.stringify(j, null, 2);
-    };
-    document.getElementById("btnRecipe").onclick = async () => {
-      const text = document.getElementById("inputText").value;
-      const res = await fetch(baseURL + "/recipes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-      });
-      const j = await res.json();
-      document.getElementById("recipeResult").textContent = 
-        JSON.stringify(j, null, 2);
+      document.getElementById("result").textContent = "⏳ Memproses...";
+      try {
+        const res = await fetch(baseURL + "/full", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        const j = await res.json();
+
+        // Format hasil output
+        let output = "";
+
+        output += "📦 Parsed Bahan:\n";
+        j.items.forEach(item => {
+          output += `- ${item.quantity} ${item.unit} ${item.ingredient}\n`;
+        });
+
+        output += `\n🌍 Total Jejak Karbon: ${j.total_carbon} kg CO2\n`;
+
+        output += "\n📋 Rekomendasi Resep:\n";
+        j.recipes.forEach((r, idx) => {
+          output += `${idx+1}. ${r.Title_Cleaned}\n`;
+        });
+
+        if (j.selected_recipe) {
+          output += `\n📖 Detail Resep: ${j.selected_recipe.Title_Cleaned}\n`;
+          output += "\n📝 Instructions:\n";
+          j.selected_recipe.Instructions_Cleaned.forEach(step => {
+            output += `- ${step}\n`;
+          });
+
+          output += "\n🍽 Ingredients:\n";
+          j.selected_recipe.Cleaned_Ingredients.forEach(ing => {
+            output += `- ${ing}\n`;
+          });
+        }
+
+        if (j.leftovers.length) {
+          output += "\n🧾 Bahan Tersisa:\n";
+          j.leftovers.forEach(l => output += `- ${l}\n`);
+        }
+
+        if (j.missing.length) {
+          output += "\n🛒 Bahan yang Kurang:\n";
+          j.missing.forEach(m => output += `- ${m}\n`);
+        }
+
+        document.getElementById("result").textContent = output;
+      } catch (err) {
+        document.getElementById("result").textContent = "❌ Terjadi kesalahan: " + err;
+      }
     };
   </script>
 </body>
