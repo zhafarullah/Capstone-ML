@@ -54,7 +54,8 @@
         }
 
         if (j.selected_recipe) {
-          output += `\n📖 Detail Resep: ${j.selected_recipe.Title_Cleaned || "Tanpa Judul"}\n`;
+          output += `\n📖 Detail Resep: ${j.selected_recipe.Title_Cleaned || j.selected_recipe.title || "Tanpa Judul"}\n`;
+
 
           if (Array.isArray(j.selected_recipe.Instructions_Cleaned)) {
             output += "\n📝 Instructions:\n";
