@@ -137,7 +137,7 @@ async def find_similar_images(
 
         feature = extract_feature_from_bytes(img_bytes).reshape(1, -1)
         
-        # Calculate cosine similarity
+        # Calculate cosine similaritys
         similarities = cosine_similarity(feature, features)[0]
         
         # Get top_n indices based on similarity
