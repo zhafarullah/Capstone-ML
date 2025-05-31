@@ -27,7 +27,7 @@ CSV_PATH = os.path.join(DATA_DIR, CSV_NAME)
 if not os.path.exists(CSV_PATH):
     logger.info("📥 Downloading %s …", CSV_NAME)
     gdown.download(
-        "https://drive.google.com/uc?id=1qYTi8dJlMGNstWSFO7voOqfJyhzjGSPq",
+        "https://drive.google.com/uc?id=1Y3EO2xEUxNZf02yUUYEf6H6xO3zhpNHY",
         CSV_PATH,
         quiet=False
     )
