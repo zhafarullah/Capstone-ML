@@ -1,28 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CBIR Makanan</title>
+    <meta charset="UTF-8">
+    <title>Image Similarity Search (GDrive)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 2em; background: #f3f3f3; }
+        .container { background: white; border-radius: 8px; box-shadow: 0 0 12px #ddd; max-width: 700px; margin: auto; padding: 2em; }
+        h2 { color: #333; }
+        .results { margin-top: 2em; }
+        .thumbs { display: flex; gap: 1em; flex-wrap: wrap; }
+        .card { background: #f8f8f8; padding: 1em; border-radius: 8px; width: 170px; box-shadow: 0 2px 8px #eee;}
+        .card img { max-width: 100%; border-radius: 5px; }
+        .query-img { margin-bottom: 1em; }
+        .sim { font-size: 0.9em; color: #336699; }
+        .filename { font-size: 1em; color: #222; margin-bottom: 0.5em; font-weight: bold; }
+        .error { color: #b00; }
+        .card a { text-decoration: none; color: #0077cc; font-size: 0.93em; }
+    </style>
 </head>
-<body style="font-family:sans-serif; text-align:center">
-    <h2>Content-Based Image Retrieval - Makanan</h2>
-
+<body>
+<div class="container">
+    <h2>Image Similarity Search</h2>
     <form method="post" enctype="multipart/form-data">
-        <input type="file" name="file" required>
-        <button type="submit">Cari Gambar Mirip</button>
+        <label>Pilih gambar query: </label>
+        <input type="file" name="file" required accept="image/*">
+        <label> &nbsp; Top-N: </label>
+        <input type="number" name="top_n" min="1" max="10" value="5" style="width:40px">
+        <button type="submit">Cari Mirip!</button>
     </form>
-
-    {% if uploaded %}
-        <h3>Gambar yang Diunggah:</h3>
-        <img src="{{ url_for('static', filename=image_path) }}" width="250"><br><br>
-
-        <h3>5 Gambar Paling Mirip:</h3>
-        {% for result in results %}
-            <div style="display:inline-block; margin:10px">
-                <img src="{{ url_for('static', filename=result.path) }}" width="150"><br>
-                <strong>{{ result.title }}</strong><br>
-                <span>{{ result.score }}</span>
-            </div>
-        {% endfor %}
+    {% if error %}
+        <p class="error">{{ error }}</p>
     {% endif %}
+    {% if query_img_url %}
+        <div class="query-img">
+            <h4>Query Image:</h4>
+            <img src="{{ query_img_url }}" alt="Query Image" style="max-width:200px;">
+        </div>
+    {% endif %}
+    {% if results %}
+    <div class="results">
+        <h4>Hasil Paling Mirip:</h4>
+        <div class="thumbs">
+            {% for res in results %}
+            <div class="card">
+                <img src="{{ res.thumbnail }}" alt="Result image"
+                     onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=No+Preview';">
+                <div class="filename">{{ res.filename }}</div>
+                <div class="sim">Similarity: {{ res.similarity }}</div>
+                <a href="{{ res.url }}" target="_blank">Lihat Gambar Asli</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
 </body>
 </html>
