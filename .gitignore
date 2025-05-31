@@ -5,3 +5,5 @@ nama_file.csv
 /generating_code/
 /__pycache__/
 /static/
+efficientnet_model.tflite
+converter.py
