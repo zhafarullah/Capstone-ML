@@ -57,13 +57,19 @@ def extract_feature_from_bytes(img_bytes: bytes):
         img_array = image.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
         img_array = preprocess_input(img_array)
-        model = get_model()
-        feature = model.predict(img_array)
+
+        # DUMMY FEATURE VECTOR untuk bypass model.predict()
+        logger.info("⚠️ Menggunakan dummy vector untuk uji ringan")
+        features, _, _ = get_data()  # gunakan dimensi fitur asli
+        feature = np.random.rand(1, features.shape[1])  # dummy vector sesuai dimensi
+
         return feature.flatten()
+
     except Exception as e:
         logger.error(f"Error during feature extraction: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Image processing failed: {e}")
+
 
 def to_thumbnail_url(gdrive_url: str):
     file_id = re.search(r'id=([^&]+)', gdrive_url)
