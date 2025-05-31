@@ -1,4 +1,4 @@
-tensorflow
+tensorflow-cpu
 scikit-learn
 numpy
 pillow
