@@ -25,7 +25,7 @@ def process_user_input(text, selected_index=0, top_n=5, fuzzy_threshold=75):
     if selected_index >= len(recipes):
         selected_index = 0
     selected = recipes.iloc[selected_index]
-    title = selected["Title_Cleaned"]
+    title = selected["title_cleaned"]
 
     instr_lines = []
     split_pattern = re.compile(r'(?<!\b\d)(?<!tsp)(?<!tbsp)\.\s+')
@@ -45,7 +45,7 @@ def process_user_input(text, selected_index=0, top_n=5, fuzzy_threshold=75):
         input_amounts.setdefault(it["ingredient"], 0.0)
         input_amounts[it["ingredient"]] += qty * UNIT_FACTORS[unit]
 
-    df_sel = df_exploded[df_exploded["Title_Cleaned"] == title].copy()
+    df_sel = df_exploded[df_exploded["title_cleaned"] == title].copy()
     df_sel["factor"] = df_sel["unit"].str.lower().map(UNIT_FACTORS)
     df_sel = df_sel[df_sel["factor"].notna()]
     df_sel["required_base"] = df_sel["quantity"] * df_sel["factor"]
@@ -91,7 +91,7 @@ def process_user_input(text, selected_index=0, top_n=5, fuzzy_threshold=75):
     return {
         "parsed_ingredients": parsed,
         "total_carbon": round(total_cf, 3),
-        "recommended_recipes": recipes["Title_Cleaned"].tolist(),
+        "recommended_recipes": recipes["title_cleaned"].tolist(),
         "selected_recipe": {
             "title": title,
             "instructions": instr_lines,
