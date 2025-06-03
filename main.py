@@ -14,6 +14,15 @@ from carbon_calculator import calculate_total_carbon_from_items
 import gdown
 import os
 
+#===========Mongo IMPORT===============#
+from pymongo import MongoClient
+
+# URI MongoDB Atlas (jangan dibagikan publik)
+MONGO_URI = "mongodb+srv://anzzanafa:fWZJzU2FGfWlobHY@cluster0.1xeasvn.mongodb.net/ecorecipes?retryWrites=true&w=majority&appName=Cluster0"
+client = MongoClient(MONGO_URI)
+db = client['ecorecipes']
+collection = db['recipes']
+'''
 # ============== AUTO DOWNLOAD CSV BESAR ====================
 def download_nama_file():
     file_id = "1qYTi8dJlMGNstWSFO7voOqfJyhzjGSPq"
@@ -26,7 +35,7 @@ def download_nama_file():
 
 # Pastikan file tersedia sebelum dibaca
 download_nama_file()
-
+'''
 # — Load machine learning artifacts
 model = load_model('best_ner_bilstm.h5')
 tok2idx = pickle.load(open('tok2idx.pkl', 'rb'))
@@ -36,15 +45,16 @@ le = pickle.load(open('label_encoder.pkl', 'rb'))
 MAXLEN = 50
 
 # — Load recipe dataset (ubah path sesuai lokasi file Anda)
-df_exploded = pd.read_csv(
-    'nama_file.csv',
-    converters={
-        'Cleaned_Ingredients': lambda x: ast.literal_eval(x) if isinstance(x, str) else x
-    }
-)
+df_exploded = pd.DataFrame(list(collection.find({})))
+
+# Konversi kolom jika perlu (misal: cleaned_ingredients dari string ke list)
+if 'cleaned_ingredients' in df_exploded.columns:
+    df_exploded['cleaned_ingredients'] = df_exploded['cleaned_ingredients'].apply(
+        lambda x: ast.literal_eval(x) if isinstance(x, str) else x
+    )
+
 df_exploded['pure_name'] = df_exploded['pure_name'].fillna('').astype(str)
 PURE_NAMES = df_exploded['pure_name'].unique().tolist()
-# — Faktor konversi satuan (basis gram/ml)
 
 UNIT_FACTORS = {
     # Mass
@@ -126,7 +136,7 @@ def recommend_recipes(text, top_n=5, fuzzy_threshold=75):
     items = parse_ingredients(text)
     pprint(items)
     if not items:
-        return pd.DataFrame(columns=['Title_Cleaned', 'Instructions_Cleaned', 'Cleaned_Ingredients'])
+        return pd.DataFrame(columns=['title_cleaned', 'instructions_cleaned', 'cleaned_ingredients', 'total_recipe_carbon', 'title_display'])
 
     title_sets = []
     for it in items:
@@ -134,14 +144,12 @@ def recommend_recipes(text, top_n=5, fuzzy_threshold=75):
         unit    = (it['unit'] or '').lower()
         ing     = (it['ingredient'] or '').lower()
 
-        # — Cari usulan nama terdekat (top 3)
         suggestions = process.extract(
             ing,
             PURE_NAMES,
             scorer=fuzz.token_set_ratio,
             limit=3
         )
-        # — Filter yang skor >= threshold
         good = [(name, score) for name, score, _ in suggestions if score >= fuzzy_threshold]
         if good:
             print(f">>> Input '{ing}' matched to:")
@@ -150,12 +158,10 @@ def recommend_recipes(text, top_n=5, fuzzy_threshold=75):
         else:
             print(f">>> No good fuzzy match for '{ing}' (top was {suggestions[0][1]}%)")
 
-        # — Buat mask berdasarkan fuzzy_threshold
         mask_name = df_exploded['pure_name'].apply(
             lambda x: fuzz.token_set_ratio(str(x).lower(), ing) >= fuzzy_threshold
         )
 
-        # — Filter kuantitas seperti biasa
         factor_in = UNIT_FACTORS.get(unit)
         factors   = df_exploded['unit'].map(UNIT_FACTORS)
         if factor_in and qty_num is not None:
@@ -178,24 +184,33 @@ def recommend_recipes(text, top_n=5, fuzzy_threshold=75):
             mask_fb = pd.Series(False, index=df_exploded.index)
 
         mask   = mask_conv | mask_fb
-        titles = set(df_exploded.loc[mask, 'Title_Cleaned'])
+        titles = set(df_exploded.loc[mask, 'title_cleaned'])
         if titles:
             title_sets.append(titles)
 
-    # — Sisa logika intersection dan head(top_n) tetap sama…
     if not title_sets:
-        return pd.DataFrame(columns=['Title_Cleaned', 'Instructions_Cleaned', 'Cleaned_Ingredients'])
+        return pd.DataFrame(columns=['title_cleaned', 'instructions_cleaned', 'cleaned_ingredients', 'total_recipe_carbon', 'title_display'])
 
     common = set.intersection(*title_sets)
     if not common:
-        return pd.DataFrame(columns=['Title_Cleaned', 'Instructions_Cleaned', 'Cleaned_Ingredients'])
+        return pd.DataFrame(columns=['title_cleaned', 'instructions_cleaned', 'cleaned_ingredients', 'total_recipe_carbon', 'title_display'])
 
     df_meta = (
         df_exploded
-        .drop_duplicates(subset=['Title_Cleaned'])
-        .loc[:, ['Title_Cleaned', 'Instructions_Cleaned', 'Cleaned_Ingredients']]
+        .drop_duplicates(subset=['title_cleaned'])
+        .loc[:, ['title_cleaned', 'instructions_cleaned', 'cleaned_ingredients', 'total_recipe_carbon']]
     )
-    return df_meta[df_meta['Title_Cleaned'].isin(common)].head(top_n)
+
+    # Tambahkan kolom tampilan dengan info CO2
+    df_meta['title_display'] = df_meta.apply(
+        lambda row: f"{row['title_cleaned']} ({row['total_recipe_carbon']} CO2eq/kg)"
+        if 'total_recipe_carbon' in row and not pd.isnull(row['total_recipe_carbon'])
+        else row['title_cleaned'],
+        axis=1
+    )
+
+    return df_meta[df_meta['title_cleaned'].isin(common)].head(top_n)
+
 # — Main program: input dan cetak hasil rekomendasi
 def main():
     # 1) Input & parsing bahan user
@@ -218,7 +233,7 @@ def main():
     print("\nResep yang cocok ditemukan:")
     indexed_res = res.reset_index(drop=True)
     for i, row in indexed_res.iterrows():
-        print(f"{i+1}. {row['Title_Cleaned']}")
+        print(f"{i+1}. {row.get('title_display', row['title_cleaned'])}")
 
     # 4) User pilih resep
     while True:
@@ -230,12 +245,12 @@ def main():
         except ValueError:
             print("Input harus berupa angka.")
     row = indexed_res.iloc[pilihan-1]
-    selected_title = row['Title_Cleaned']
+    selected_title = row['title_cleaned']
 
     # 5) Cetak detail resep
     print(f"\n=== {selected_title} ===\n")
     print("Instructions:")
-    instr = row['Instructions_Cleaned'].strip()
+    instr = row['instructions_cleaned'].strip()
     for part in split_pattern.split(instr):
         sent = part.strip().rstrip('.')
         if not sent:
@@ -246,7 +261,7 @@ def main():
             print(f"  {prefix}{line}")
 
     print("\nIngredients:")
-    for ing in row['Cleaned_Ingredients']:
+    for ing in row['cleaned_ingredients']:
         print(f"  - {ing}")
 
     # 6) Hitung stok user (base unit)
@@ -260,7 +275,7 @@ def main():
         input_amounts[it['ingredient']] += qty * UNIT_FACTORS[unit]
 
     # 7) Ambil kebutuhan resep dari df_exploded
-    df_sel = df_exploded[df_exploded['Title_Cleaned'] == selected_title].copy()
+    df_sel = df_exploded[df_exploded['title_cleaned'] == selected_title].copy()
     df_sel['factor'] = df_sel['unit'].str.lower().map(UNIT_FACTORS)
     df_sel = df_sel[df_sel['factor'].notna()]
     df_sel['required_base'] = df_sel['quantity'] * df_sel['factor']
