@@ -29,7 +29,7 @@ def process_user_input(text, selected_index=0, top_n=5, fuzzy_threshold=75):
 
     instr_lines = []
     split_pattern = re.compile(r'(?<!\b\d)(?<!tsp)(?<!tbsp)\.\s+')
-    for part in split_pattern.split(selected["Instructions_Cleaned"].strip()):
+    for part in split_pattern.split(selected["instructions_cleaned"].strip()):
         sent = part.strip().rstrip('.')
         if sent:
             instr_lines.append(sent)
