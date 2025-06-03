@@ -34,7 +34,7 @@ def process_user_input(text, selected_index=0, top_n=5, fuzzy_threshold=75):
         if sent:
             instr_lines.append(sent)
 
-    ingredients = selected["Cleaned_Ingredients"]
+    ingredients = selected["cleaned_ingredients"]
 
     input_amounts = {}
     for it in parsed:
