@@ -5,3 +5,4 @@ pillow
 fastapi
 uvicorn[standard]
 python-multipart
+cloudinary
