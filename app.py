@@ -52,22 +52,20 @@ async def load_resources():
         model = load_model('efficientnet_model.h5')
         logger.info("Model loaded successfully.")
 
-        logger.info("Loading feature vectors...")
-        with open('features_gdrive.pkl', 'rb') as f:
-            features, _ = pickle.load(f)
-        logger.info(f"Features loaded successfully. Total: {len(features)}")
+        logger.info("Loading features from features_cloudinary.pkl...")
+        with open('features_cloudinary.pkl', 'rb') as f:
+            features, filenames = pickle.load(f)
+        logger.info(f"Features loaded: {len(features)}")
 
         logger.info("Loading filename_to_url.json...")
         with open("filename_to_url.json", "r") as f:
             filename_to_url = json.load(f)
-        filenames = list(filename_to_url.keys())
-        logger.info(f"Filenames loaded: {len(filenames)}")
+        logger.info(f"Cloudinary URL mapping loaded: {len(filename_to_url)} items")
 
     except Exception as e:
         logger.error(f"Startup error: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Startup failed: {e}")
-
 def extract_feature_from_bytes(img_bytes: bytes):
     """Extracts features from image bytes using the loaded model."""
     if model is None:
