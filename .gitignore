@@ -7,3 +7,4 @@ nama_file.csv
 /static/
 efficientnet_model.tflite
 converter.py
+/images/

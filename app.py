@@ -7,10 +7,20 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import pickle
 import io
-import base64
 import os
 import re
-import logging # Tambahkan logging untuk debugging
+import logging
+import json
+import cloudinary
+import cloudinary.uploader
+
+# Konfigurasi Cloudinary
+cloudinary.config(
+    cloud_name="drcz82fa2",
+    api_key="747541653778546",
+    api_secret="0atiXyH54uYPGqW59d9HX1U5S90",
+    secure=True
+)
 
 # Konfigurasi logging
 logging.basicConfig(level=logging.INFO)
@@ -21,55 +31,48 @@ app = FastAPI(
     title="Carbon + Recipe API (Image Similarity)",
     description="API for finding similar images based on EfficientNet features.",
     version="0.1.0",
-    # Anda bisa menambahkan tag/grouping untuk OpenAPI UI
     openapi_tags=[
         {"name": "Image Similarity", "description": "Operations for finding similar images."},
         {"name": "Health Check", "description": "API health monitoring."}
     ]
 )
 
-# Variabel global untuk model dan fitur
+# Variabel global
 model = None
 features = None
-urls = None
 filenames = None
+filename_to_url = {}
 
 @app.on_event("startup")
 async def load_resources():
-    """Load the Keras model and features once at application startup."""
-    global model, features, urls, filenames
+    """Load model, features, and filename-to-URL mapping on startup."""
+    global model, features, filenames, filename_to_url
     try:
-        logger.info("Loading efficientnet_model.h5...")
+        logger.info("Loading EfficientNet model...")
         model = load_model('efficientnet_model.h5')
         logger.info("Model loaded successfully.")
 
-        logger.info("Loading features_gdrive.pkl...")
+        logger.info("Loading feature vectors...")
         with open('features_gdrive.pkl', 'rb') as f:
-            features, urls = pickle.load(f)
-        logger.info(f"Features loaded successfully. Total features: {len(features)}")
+            features, _ = pickle.load(f)
+        logger.info(f"Features loaded successfully. Total: {len(features)}")
 
-        logger.info("Loading features.pkl...")
-        with open('features.pkl', 'rb') as f2:
-            _, filenames = pickle.load(f2)
-        logger.info(f"Filenames loaded successfully. Total filenames: {len(filenames)}")
+        logger.info("Loading filename_to_url.json...")
+        with open("filename_to_url.json", "r") as f:
+            filename_to_url = json.load(f)
+        filenames = list(filename_to_url.keys())
+        logger.info(f"Filenames loaded: {len(filenames)}")
 
-    except FileNotFoundError as e:
-        logger.error(f"Error loading resource: {e}. Make sure the files are in the correct directory.")
-        # Menghentikan startup jika file penting tidak ditemukan
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-                            detail=f"Failed to load required model/features: {e}")
     except Exception as e:
-        logger.error(f"An unexpected error occurred during resource loading: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-                            detail=f"Failed to load resources: {e}")
-
+        logger.error(f"Startup error: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Startup failed: {e}")
 
 def extract_feature_from_bytes(img_bytes: bytes):
     """Extracts features from image bytes using the loaded model."""
     if model is None:
-        logger.error("Model not loaded during feature extraction.")
-        raise RuntimeError("Model not loaded. Application startup failed or resources are missing.")
-    
+        logger.error("Model not loaded.")
+        raise RuntimeError("Model not loaded.")
     try:
         img = image.load_img(io.BytesIO(img_bytes), target_size=(224, 224))
         img_array = image.img_to_array(img)
@@ -78,93 +81,61 @@ def extract_feature_from_bytes(img_bytes: bytes):
         feature = model.predict(img_array)
         return feature.flatten()
     except Exception as e:
-        logger.error(f"Error during feature extraction: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                            detail=f"Image processing failed: {e}")
-
-def to_thumbnail_url(gdrive_url: str):
-    """Generates a Google Drive thumbnail URL from a shared URL."""
-    file_id = re.search(r'id=([^&]+)', gdrive_url)
-    if file_id:
-        return f"https://drive.google.com/thumbnail?id={file_id.group(1)}"
-    return gdrive_url
+        logger.error(f"Feature extraction error: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Image processing failed: {e}")
 
 def prettify_filename(filename: str):
-    """Cleans up and formats a filename for display."""
+    """Format filename to be user-friendly."""
     name = os.path.basename(filename)
-    name = re.sub(r'-\d+', '', name)  # Remove numbers after a dash
-    name = re.sub(r'\.jpg$|\.jpeg$|\.png$', '', name, flags=re.IGNORECASE)  # Remove extensions
-    name = name.replace('-', ' ')      # Replace dashes with spaces
-    name = name.strip()
-    name = ' '.join(w.capitalize() for w in name.split())
-    return name
+    name = re.sub(r'-\d+', '', name)
+    name = re.sub(r'\.jpg$|\.jpeg$|\.png$', '', name, flags=re.IGNORECASE)
+    name = name.replace('-', ' ').strip()
+    return ' '.join(w.capitalize() for w in name.split())
 
 @app.get("/health", tags=["Health Check"])
 async def health_check():
-    """Checks the health of the API."""
-    # Anda bisa menambahkan logika pengecekan model atau database di sini
+    """Check if model and features are loaded."""
     if model is not None and features is not None:
-        return {"status": "ok", "message": "API is healthy and resources are loaded."}
-    else:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-                            detail="API resources are not loaded yet or failed to load.")
-
+        return {"status": "ok", "message": "Model and features loaded."}
+    raise HTTPException(status_code=503, detail="Resources not loaded.")
 
 @app.post("/", tags=["Image Similarity"])
 async def find_similar_images(
-    file: UploadFile = File(..., description="Image file to find similarities for."),
+    file: UploadFile = File(..., description="Upload image to find similar results."),
     top_n: int = Form(5, ge=1, le=20, description="Number of top similar results to return.")
 ):
-    """
-    Uploads an image and returns a list of similar images from the dataset.
-    """
     if file.filename == '':
-        logger.warning("No file uploaded.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No file uploaded.")
-    
+        raise HTTPException(status_code=400, detail="No file uploaded.")
     if not file.content_type.startswith("image/"):
-        logger.warning(f"Invalid file type uploaded: {file.content_type}")
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Only image files are supported.")
-
+        raise HTTPException(status_code=415, detail="Only image files are supported.")
     try:
-        img_bytes = await file.read() # Asynchronously read file bytes
-        
-        # Ensure model and features are loaded
-        if model is None or features is None or urls is None or filenames is None:
-            logger.error("Application resources (model/features) are not loaded during POST request.")
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-                                detail="Application resources are not fully loaded. Please try again later.")
+        img_bytes = await file.read()
+        if model is None or features is None or filenames is None:
+            raise HTTPException(status_code=503, detail="Resources not available.")
 
+        # Ekstraksi fitur & hitung similarity
         feature = extract_feature_from_bytes(img_bytes).reshape(1, -1)
-        
-        # Calculate cosine similaritys
         similarities = cosine_similarity(feature, features)[0]
-        
-        # Get top_n indices based on similarity
         top_idx = np.argsort(similarities)[::-1][:top_n]
-        
-        results = [
-            {
-                "filename": prettify_filename(filenames[i]),
-                "url": urls[i],
-                "similarity": round(float(similarities[i]), 3),
-                "thumbnail": to_thumbnail_url(urls[i])
-            }
-            for i in top_idx
-        ]
-        
-        logger.info(f"Successfully processed image and found {len(results)} similar items.")
-        return JSONResponse(content={"results": results})
 
-    except HTTPException as e:
-        # Re-raise HTTPException if already handled by previous layers
-        raise e
+        # Susun hasil
+        results = []
+        for i in top_idx:
+            fname = os.path.basename(filenames[i])
+            cloud_url = filename_to_url.get(fname, "URL_NOT_FOUND")
+            results.append({
+                "filename": prettify_filename(fname),
+                "url": cloud_url,
+                "similarity": round(float(similarities[i]), 3),
+                "thumbnail": cloud_url  # langsung pakai full size
+            })
+
+        return JSONResponse(content={"results": results})
     except Exception as e:
-        logger.error(f"An unexpected error occurred during image similarity processing: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-                            detail=f"Internal server error: {e}")
+        logger.error(f"Similarity error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Server error: {e}")
 
 if __name__ == '__main__':
     import uvicorn
-    port = int(os.environ.get("PORT", 8000)) 
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
