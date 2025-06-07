@@ -122,7 +122,7 @@ async def find_similar_images(
             fname = os.path.basename(filenames[i])
             cloud_url = filename_to_url.get(fname, "URL_NOT_FOUND")
             results.append({
-                "filename": prettify_filename(fname),
+                "filename": fname,
                 "url": cloud_url,
                 "similarity": round(float(similarities[i]), 3),
                 "thumbnail": cloud_url  # langsung pakai full size
