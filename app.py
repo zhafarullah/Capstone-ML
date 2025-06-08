@@ -13,8 +13,9 @@ import logging
 import json
 import cloudinary
 import cloudinary.uploader
+from pymongo import MongoClient
 
-# Konfigurasi Cloudinary
+# ─── Konfigurasi Cloudinary ─────────────────────────────
 cloudinary.config(
     cloud_name="drcz82fa2",
     api_key="747541653778546",
@@ -22,11 +23,20 @@ cloudinary.config(
     secure=True
 )
 
-# Konfigurasi logging
+# ─── Konfigurasi Logging ────────────────────────────────
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Inisialisasi FastAPI
+# ─── Koneksi MongoDB ─────────────────────────────────────
+MONGO_URI = "mongodb+srv://anzzanafa:fWZJzU2FGfWlobHY@cluster0.1xeasvn.mongodb.net/ecorecipes?retryWrites=true&w=majority&appName=Cluster0"
+MONGO_DB = "ecorecipes"
+MONGO_COLLECTION = "recipes"
+
+client = MongoClient(MONGO_URI)
+db = client[MONGO_DB]
+collection = db[MONGO_COLLECTION]
+
+# ─── Inisialisasi FastAPI ───────────────────────────────
 app = FastAPI(
     title="Carbon + Recipe API (Image Similarity)",
     description="API for finding similar images based on EfficientNet features.",
@@ -37,7 +47,7 @@ app = FastAPI(
     ]
 )
 
-# Variabel global
+# ─── Variabel Global ─────────────────────────────────────
 model = None
 features = None
 filenames = None
@@ -45,31 +55,29 @@ filename_to_url = {}
 
 @app.on_event("startup")
 async def load_resources():
-    """Load model, features, and filename-to-URL mapping on startup."""
     global model, features, filenames, filename_to_url
     try:
-        logger.info("Loading EfficientNet model...")
+        logger.info("🔄 Loading EfficientNet model...")
         model = load_model('efficientnet_model.h5')
-        logger.info("Model loaded successfully.")
+        logger.info("✅ Model loaded.")
 
-        logger.info("Loading features from features_cloudinary.pkl...")
+        logger.info("🔄 Loading features from features_cloudinary.pkl...")
         with open('features_cloudinary.pkl', 'rb') as f:
             features, filenames = pickle.load(f)
-        logger.info(f"Features loaded: {len(features)}")
+        logger.info(f"✅ Features loaded: {len(features)}")
 
-        logger.info("Loading filename_to_url.json...")
+        logger.info("🔄 Loading filename_to_url.json...")
         with open("filename_to_url.json", "r") as f:
             filename_to_url = json.load(f)
-        logger.info(f"Cloudinary URL mapping loaded: {len(filename_to_url)} items")
+        logger.info(f"✅ Cloudinary URL mapping loaded: {len(filename_to_url)} items")
 
     except Exception as e:
-        logger.error(f"Startup error: {e}", exc_info=True)
+        logger.error(f"❌ Startup error: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Startup failed: {e}")
+
 def extract_feature_from_bytes(img_bytes: bytes):
-    """Extracts features from image bytes using the loaded model."""
     if model is None:
-        logger.error("Model not loaded.")
         raise RuntimeError("Model not loaded.")
     try:
         img = image.load_img(io.BytesIO(img_bytes), target_size=(224, 224))
@@ -79,20 +87,22 @@ def extract_feature_from_bytes(img_bytes: bytes):
         feature = model.predict(img_array)
         return feature.flatten()
     except Exception as e:
-        logger.error(f"Feature extraction error: {e}", exc_info=True)
+        logger.error(f"❌ Feature extraction error: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Image processing failed: {e}")
 
-def prettify_filename(filename: str):
-    """Format filename to be user-friendly."""
-    name = os.path.basename(filename)
-    name = re.sub(r'-\d+', '', name)
-    name = re.sub(r'\.jpg$|\.jpeg$|\.png$', '', name, flags=re.IGNORECASE)
-    name = name.replace('-', ' ').strip()
-    return ' '.join(w.capitalize() for w in name.split())
+import re
+
+def format_instructions_cleaned(text: str) -> list:
+    if not text:
+        return []
+
+    split_pattern = re.compile(r'(?<!\b[tT]bsp)(?<!\b[tT]sp)(?<!\betc)(?<!\d)\.\s+')
+    steps = split_pattern.split(text)
+    return [step.strip() + '.' for step in steps if step.strip()]
+
 
 @app.get("/health", tags=["Health Check"])
 async def health_check():
-    """Check if model and features are loaded."""
     if model is not None and features is not None:
         return {"status": "ok", "message": "Model and features loaded."}
     raise HTTPException(status_code=503, detail="Resources not loaded.")
@@ -116,21 +126,36 @@ async def find_similar_images(
         similarities = cosine_similarity(feature, features)[0]
         top_idx = np.argsort(similarities)[::-1][:top_n]
 
-        # Susun hasil
         results = []
         for i in top_idx:
-            fname = os.path.basename(filenames[i])
-            cloud_url = filename_to_url.get(fname, "URL_NOT_FOUND")
+            fname = os.path.splitext(os.path.basename(filenames[i]))[0]
+            cloud_url = filename_to_url.get(f"{fname}.jpg", "URL_NOT_FOUND")
+
+            # Ambil data dari MongoDB berdasarkan image_name
+            mongo_doc = collection.find_one({"image_name": fname})
+            if mongo_doc:
+                total_carbon = mongo_doc.get("total_recipe_carbon")
+                raw_instructions = mongo_doc.get("instructions_cleaned", "")
+                instructions = format_instructions_cleaned(raw_instructions)
+                ingredients = mongo_doc.get("cleaned_ingredients", [])
+            else:
+                total_carbon = None
+                instructions = ""
+                ingredients = []
+
             results.append({
-                "filename": os.path.splitext(fname)[0],
+                "filename": fname,
                 "url": cloud_url,
                 "similarity": round(float(similarities[i]), 3),
-                "thumbnail": cloud_url  # langsung pakai full size
+                "total_recipe_carbon": total_carbon,
+                "instructions_cleaned": instructions,
+                "cleaned_ingredients": ingredients,
+                "thumbnail": cloud_url
             })
 
         return JSONResponse(content={"results": results})
     except Exception as e:
-        logger.error(f"Similarity error: {e}", exc_info=True)
+        logger.error(f"❌ Similarity error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Server error: {e}")
 
 if __name__ == '__main__':

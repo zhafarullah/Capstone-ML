@@ -8,3 +8,4 @@ nama_file.csv
 efficientnet_model.tflite
 converter.py
 /images/
+mongotest.py
