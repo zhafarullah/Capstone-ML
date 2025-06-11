@@ -7,3 +7,4 @@ __pycache__
 /generating_code/
 /eval_matriks/
 /images/
+mongotest.py

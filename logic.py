@@ -38,23 +38,33 @@ def process_user_input(text, top_n=5, fuzzy_threshold=75):
         used_amounts = df_sel.groupby("pure_name")["required_base"].sum().to_dict()
 
         # Hitung leftovers
-        leftovers = []
+        used = []
         for inp_name, avail_base in input_amounts.items():
             result = process.extractOne(inp_name, list(used_amounts), scorer=fuzz.token_set_ratio)
-            required = 0.0
-            if result is not None:
-                match, score, _ = result
-                if score >= 60:
-                    required = used_amounts.get(match, 0.0)
-            sisa_base = avail_base - required
-            if sisa_base > 0:
+            required = (used_amounts.get(result[0], 0.0) if result and result[1]>=fuzzy_threshold else 0.0)
+            used_base = min(avail_base, required)
+            if used_base>0:
+                orig_unit = next((it["unit"] for it in parsed if it["ingredient"]==inp_name), None)
+                used_qty = used_base/UNIT_FACTORS.get(orig_unit.lower(),1)
+                used.append(f"{used_qty:.2f} {orig_unit} {inp_name}")
+        leftovers = used  # rename or overwrite
+        # Susun dict untuk carbon terpakai
+        used_dicts = []
+        for inp_name, avail_base in input_amounts.items():
+            # cari match dan jumlah terpakai (sama logika sisa tetapi min(avail, req))
+            result = process.extractOne(inp_name, list(used_amounts), scorer=fuzz.token_set_ratio)
+            required = (used_amounts.get(result[0], 0.0) if result and result[1] >= 60 else 0.0)
+            used_base = min(avail_base, required)
+            if used_base > 0:
                 orig_unit = next((it["unit"] for it in parsed if it["ingredient"] == inp_name), None)
                 if orig_unit and orig_unit.lower() in UNIT_FACTORS:
-                    sisa_qty = sisa_base / UNIT_FACTORS[orig_unit.lower()]
-                    leftovers.append(f"{sisa_qty:.2f} {orig_unit} {inp_name}")
-                else:
-                    leftovers.append(f"{sisa_base:.2f} base-unit {inp_name}")
-
+                    used_qty = used_base / UNIT_FACTORS[orig_unit.lower()]
+                    used_dicts.append({
+                        "quantity": str(used_qty),
+                        "unit":     orig_unit,
+                        "ingredient": inp_name
+                    })
+        total_used_carbon = calculate_total_carbon_from_items(used_dicts, UNIT_FACTORS)
         # Hitung missing
         df_group = (
             df_sel.groupby("pure_name")
@@ -85,10 +95,36 @@ def process_user_input(text, top_n=5, fuzzy_threshold=75):
                 short_qty = short_base / factor
                 missing.append(f"{short_qty:.2f} {unit} {name}")
 
+        miss_dicts = []
+        for _, r in df_group.iterrows():
+            name   = r["pure_name"]
+            req    = r["required_base"]
+            factor = r["factor"]
+            unit   = r["unit"]
+            result = process.extractOne(name, list(input_amounts), scorer=fuzz.token_set_ratio)
+            avail  = (input_amounts.get(result[0], 0.0) if result and result[1] >= 60 else 0.0)
+            if avail < req:
+                short_base = req - avail
+                short_qty  = short_base / factor
+                miss_dicts.append({
+                    "quantity": str(short_qty),
+                    "unit":     unit,
+                    "ingredient": name
+                })
+        total_missing_carbon = calculate_total_carbon_from_items(miss_dicts, UNIT_FACTORS)
+
+        # ─── Terakhir, efisiensi ───
+        total_recipe_carbon = total_used_carbon + total_missing_carbon
+        efficiency = (total_used_carbon / total_recipe_carbon) if total_recipe_carbon > 0 else 0.0
+
+        # Masukkan semua ke hasil
         results.append({
-            "title": title_display,
-            "leftovers": leftovers,
-            "missing": missing
+            "title":                   title_display,
+            "used":               leftovers,
+            "total_used_carbon":       round(total_used_carbon, 3),
+            "missing":                 missing,
+            "total_missing_carbon":    round(total_missing_carbon, 3),
+            "efficiency":              round(efficiency, 3)
         })
 
     return {
