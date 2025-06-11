@@ -2,7 +2,8 @@ from main import parse_ingredients, recommend_recipes, parse_number, df_exploded
 from carbon_calculator import calculate_total_carbon_from_items
 from rapidfuzz import fuzz, process
 import re
-
+import nltk
+nltk.download('punkt', quiet=True)
 def process_user_input(text, top_n=5, fuzzy_threshold=75):
     parsed = parse_ingredients(text)
     total_cf = calculate_total_carbon_from_items(parsed, UNIT_FACTORS)
