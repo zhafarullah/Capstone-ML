@@ -2,7 +2,6 @@
 
 import os
 import logging
-import nltk
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # ── Init ──────────────────────────────────────────────────────
 logger.info("🚀 Booting app.py")
-nltk.download("punkt", quiet=True)
+
 
 # ── Import modul helper ────────────────────────────────────────
 try:

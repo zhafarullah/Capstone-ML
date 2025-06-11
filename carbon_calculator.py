@@ -3,15 +3,12 @@
 import pandas as pd
 import numpy as np
 from gensim.models import Word2Vec
-from nltk.tokenize import word_tokenize
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from rapidfuzz import process, fuzz
 import joblib
 from fractions import Fraction
-
-import nltk
-nltk.data.path.append("nltk_data")
+import re  # ← gunakan regex
 
 # ── Load models & data ───────────────────────────────────────────────────────
 df = pd.read_csv("all_carbon.csv")
@@ -26,7 +23,6 @@ def parse_number(q):
     if q is None:
         return None
     q = str(q).strip().lower()
-    # handle fractions like "1/2"
     if "/" in q:
         try:
             return float(Fraction(q))
@@ -42,7 +38,7 @@ def parse_number(q):
 
 # ── Embedding & estimasi karbon per item ─────────────────────────────────────
 def get_sentence_vector(text, model, dim=100):
-    tokens = word_tokenize(text.lower())
+    tokens = re.findall(r'\b\w+\b', text.lower())  # ← ganti word_tokenize
     vectors = [model.wv[word] for word in tokens if word in model.wv]
     return np.mean(vectors, axis=0) if vectors else np.zeros(dim)
 
@@ -65,12 +61,10 @@ def calculate_total_carbon_from_items(items, unit_factors):
         unit = (item.get("unit") or "").lower()
         name = (item.get("ingredient") or "").lower()
 
-        # konversi qty ke float
         qty = parse_number(qty_raw)
         if qty is None or unit not in unit_factors:
             continue
 
-        # ubah ke kilogram
         qty_kg = qty * unit_factors[unit] / 1000
         cf_per_unit = estimate_carbon_from_item(name)
         total += qty_kg * cf_per_unit
