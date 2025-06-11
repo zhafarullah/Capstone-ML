@@ -8,10 +8,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from rapidfuzz import process, fuzz
 import joblib
-import nltk
 from fractions import Fraction
 
-nltk.download("punkt")
+import nltk
+nltk.data.path.append("nltk_data")
 
 # ── Load models & data ───────────────────────────────────────────────────────
 df = pd.read_csv("all_carbon.csv")
