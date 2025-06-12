@@ -15,7 +15,7 @@
 4. jalankan "python app.py" atau jika ingin versi lokalnya bisa menjalankan "python main.py path/to/test_image.jpg --top_n 5"
 
 # Matriks Evaluasi (Heatmap)
-![Heatmap Cosine Similarity](images/nama_gambar_anda.png)
+![Heatmap Cosine Similarity](img/heatmap.png)
 Disini Saya menggunakan heatmap cosine similarity karena proyek ini tidak melibatkan klasifikasi gambar, melainkan pengukuran kemiripan antar gambar berdasarkan fitur visual dari model EfficientNet. Karena tidak ada label kategori, saya tidak bisa menggunakan confusion matrix yang membutuhkan label asli dan prediksi. Heatmap ini menampilkan seberapa mirip satu gambar dengan yang lain, dengan nilai mendekati 1 menunjukkan kemiripan tinggi. Dari hasilnya, saya bisa melihat bahwa gambar-gambar dengan jenis atau visual serupa memang memiliki similarity yang cukup tinggi, sehingga evaluasi ini membantu saya menilai kualitas fitur tanpa perlu label.
 
 
