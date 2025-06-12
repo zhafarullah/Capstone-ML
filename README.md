@@ -1,11 +1,13 @@
 # ekstraksi-fitur
 
-## caro jalaninny pertama download dataset gambar
-https://www.kaggle.com/datasets/pes12017000148/food-ingredients-and-recipe-dataset-with-images/data  .terus ctrl+A copy ke /static/images/
+## Struktur File
+https://ww
+
 ## terus lanjutin langkah dibawah ini:
 1. python -m venv .venv
 2. .venv\Scripts\activate
 3. pip install -r requirements.txt
-4. jalankan "python app.py"
+4. jalankan "python app.py" atau jika ingin versi lokalnya bisa menjalankan "python main.py path/to/test_image.jpg --top_n 5"
 
-## Link file lengkap https://drive.google.com/file/d/1U6MBrwnzWR4xiSGEWBM_q3kJffIhCvtE/view?usp=sharing
+
+
