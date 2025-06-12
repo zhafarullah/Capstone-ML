@@ -10,7 +10,7 @@
 7. filename_to_url.json: File JSON yang memetakan nama file gambar ke URL Cloudinary.
 8. requirements.txt: Daftar dependensi Python yang dibutuhkan proyek.
 
-## terus lanjutin langkah dibawah ini:
+## Cara Menjalankan 
 1. python -m venv .venv
 2. .venv\Scripts\activate
 3. pip install -r requirements.txt
