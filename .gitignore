@@ -4,3 +4,6 @@ gen_req.py
 /static/images/
 features.pkl
 __pycache__
+/eval_matriks/
+/images/
+/generating_code/
