@@ -1,5 +1,5 @@
 # Capstone Deploy
-
+Branch berikut merupakan gabungan dari fitur NLP dan fitur perhitungan karbon. Output utama dari branch ini adalah kode app.py yang merupakan kode untuk di deploy ke backend
 ## Cara Menjalankan
 1. Aktifkan virtual environment
    ```
