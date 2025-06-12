@@ -9,5 +9,8 @@
 8. link dataset resep yang sudah dihitung karbonnya: https://drive.google.com/drive/u/7/folders/1la7r2U0dBTddq9tm3elTnQvdKXzxfirs
 
 # Cara Menjalankan
-1. Run main.py untuk user dapat menginput bahan.
-2. Run recipe_carbon.py untuk melakukan perhitungan carbon untuk semua bahan pada resep, tetapi ini sudah dijalankan dan disimpan menjadi csv namma_file.csv
+1. python -m venv .venv
+2. aktifkan virual environment .venv\Scripts\activate
+3. pip install -r requirements.txt
+4. run main.py untuk user dapat menginput bahan.
+5. run recipe_carbon.py untuk melakukan perhitungan carbon untuk semua bahan pada resep, tetapi ini sudah dijalankan dan disimpan menjadi csv namma_file.csv
