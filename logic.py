@@ -37,7 +37,6 @@ def process_user_input(text, top_n=5, fuzzy_threshold=75):
         df_sel["required_base"] = df_sel["quantity"] * df_sel["factor"]
         used_amounts = df_sel.groupby("pure_name")["required_base"].sum().to_dict()
 
-        # Hitung leftovers
         used = []
         for inp_name, avail_base in input_amounts.items():
             result = process.extractOne(inp_name, list(used_amounts), scorer=fuzz.token_set_ratio)
@@ -47,11 +46,9 @@ def process_user_input(text, top_n=5, fuzzy_threshold=75):
                 orig_unit = next((it["unit"] for it in parsed if it["ingredient"]==inp_name), None)
                 used_qty = used_base/UNIT_FACTORS.get(orig_unit.lower(),1)
                 used.append(f"{used_qty:.2f} {orig_unit} {inp_name}")
-        leftovers = used  # rename or overwrite
-        # Susun dict untuk carbon terpakai
+        leftovers = used  
         used_dicts = []
         for inp_name, avail_base in input_amounts.items():
-            # cari match dan jumlah terpakai (sama logika sisa tetapi min(avail, req))
             result = process.extractOne(inp_name, list(used_amounts), scorer=fuzz.token_set_ratio)
             required = (used_amounts.get(result[0], 0.0) if result and result[1] >= 60 else 0.0)
             used_base = min(avail_base, required)
@@ -65,7 +62,6 @@ def process_user_input(text, top_n=5, fuzzy_threshold=75):
                         "ingredient": inp_name
                     })
         total_used_carbon = calculate_total_carbon_from_items(used_dicts, UNIT_FACTORS)
-        # Hitung missing
         df_group = (
             df_sel.groupby("pure_name")
             .agg({
@@ -113,11 +109,9 @@ def process_user_input(text, top_n=5, fuzzy_threshold=75):
                 })
         total_missing_carbon = calculate_total_carbon_from_items(miss_dicts, UNIT_FACTORS)
 
-        # ─── Terakhir, efisiensi ───
         total_recipe_carbon = total_used_carbon + total_missing_carbon
         efficiency = (total_used_carbon / total_recipe_carbon) if total_recipe_carbon > 0 else 0.0
 
-        # Masukkan semua ke hasil
         results.append({
             "title":                   title_display,
             "used":               leftovers,

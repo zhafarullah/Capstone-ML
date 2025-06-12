@@ -17,18 +17,15 @@ import os
 #===========Mongo IMPORT===============#
 from pymongo import MongoClient
 
-# URI MongoDB Atlas (jangan dibagikan publik)
 MONGO_URI = "mongodb+srv://anzzanafa:fWZJzU2FGfWlobHY@cluster0.1xeasvn.mongodb.net/ecorecipes?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(MONGO_URI)
 db = client['ecorecipes']
 collection = db['recipes']
 
-# — Load machine learning artifacts
 model = load_model('best_ner_bilstm.h5')
 tok2idx = pickle.load(open('tok2idx.pkl', 'rb'))
 le = pickle.load(open('label_encoder.pkl', 'rb'))
 
-# — Constants
 MAXLEN = 50
 
 df_exploded = pd.DataFrame(list(collection.find({})))
@@ -57,7 +54,6 @@ UNIT_FACTORS = {
     'gal': 3785.41, 'gallon': 3785.41, 'gallons': 3785.41,
 }
 
-# Helper to convert textual numbers to float
 
 def parse_number(q):
     q = q.strip().lower()
@@ -75,7 +71,6 @@ def parse_number(q):
     except:
         return None
 
-# NER parsing
 
 def parse_ingredients(text):
     toks = text.lower().replace(',', '').split()
@@ -110,7 +105,6 @@ def parse_ingredients(text):
     if all(cur.values()): items.append(cur)
     return items
 
-# Recipe recommendation (fuzzy + match)
 
 def recommend_recipes(text, top_n=5, fuzzy_threshold=75):
     items = parse_ingredients(text)
@@ -149,11 +143,9 @@ def main():
     text = input("Masukkan bahan makanan: ")
     input_items = parse_ingredients(text)
 
-    # Total karbon dari input user
     total_cf = calculate_total_carbon_from_items(input_items, UNIT_FACTORS)
     print(f"\nTotal Jejak Karbon dari Bahan: {total_cf:.2f} kg CO2")
 
-    # Rekomendasi resep
     res = recommend_recipes(text)
     if res.empty:
         print("Maaf, tidak ada resep yang cocok.")
@@ -162,7 +154,6 @@ def main():
     idx = res.reset_index(drop=True)
     for i, r in idx.iterrows(): print(f"{i+1}. {r['title_display']}")
 
-    # Pilih resep
     while True:
         try:
             p=int(input("\nMasukkan nomor resep: "))
@@ -170,7 +161,6 @@ def main():
         except: pass
     sel=idx.iloc[p-1]['title_cleaned']
 
-    # Cetak detail
     print(f"\n=== {sel} ===\nInstructions:")
     split_p = re.compile(r'(?<!\b\d)(?<!tsp)(?<!tbsp)\.\s+')
     inst=idx.iloc[p-1]['instructions_cleaned']
@@ -186,7 +176,6 @@ def main():
     for ing in idx.iloc[p-1]['cleaned_ingredients']:
         print(f"  - {ing}")
 
-    # Stok user ke base unit
     input_amounts = {}
     for it in input_items:
         qty=parse_number(it['quantity'])
@@ -195,13 +184,11 @@ def main():
         input_amounts.setdefault(it['ingredient'],0.0)
         input_amounts[it['ingredient']]+=qty*UNIT_FACTORS[unit]
 
-    # Kebutuhan resep
     df_sel=df_exploded[df_exploded['title_cleaned']==sel].copy()
     df_sel['factor']=df_sel['unit'].str.lower().map(UNIT_FACTORS)
     df_sel['required_base']=df_sel['quantity']*df_sel['factor']
     used_amounts = df_sel.groupby('pure_name')['required_base'].sum().to_dict()
 
-    # Bahan terpakai & total karbon
     used_items=[]
     used_dicts=[]
     for name, avail in input_amounts.items():
@@ -209,7 +196,6 @@ def main():
         req=used_amounts.get(match,0.0) if score>=60 else 0.0
         used_base=min(avail, req)
         if used_base>0:
-            # unit asli
             orig_unit=next((it['unit'] for it in input_items if it['ingredient']==name),None)
             if orig_unit and orig_unit.lower() in UNIT_FACTORS:
                 used_qty = used_base/UNIT_FACTORS[orig_unit.lower()]
@@ -223,7 +209,6 @@ def main():
         total_used = calculate_total_carbon_from_items(used_dicts, UNIT_FACTORS)
         print(f"Total Karbon dari Bahan Terpakai: {total_used:.2f} kg CO₂")
 
-    # Bahan yang kurang & total karbon
     df_group = df_sel.groupby('pure_name').agg({'required_base':'sum','unit':lambda s:s.iloc[0],'factor':lambda s:s.iloc[0]}).reset_index()
     missing=[]
     miss_dicts=[]
@@ -253,4 +238,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    ## redeploy

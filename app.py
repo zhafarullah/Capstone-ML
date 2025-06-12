@@ -7,43 +7,37 @@ from pydantic import BaseModel
 from typing import Dict
 from fastapi.middleware.cors import CORSMiddleware
 
-# ── Setup Logging ─────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# ── Init ──────────────────────────────────────────────────────
 logger.info("🚀 Booting app.py")
 
 
-# ── Import modul helper ────────────────────────────────────────
 try:
     from carbon_calculator import calculate_total_carbon_from_items
     from main import parse_ingredients, recommend_recipes, UNIT_FACTORS
-    from logic import process_user_input  # Jika kamu punya pipeline lengkap
+    from logic import process_user_input 
     logger.info("✅ Helpers loaded")
 except Exception:
     logger.exception("❌ Failed to load helpers")
     raise
 
-# ── FastAPI setup ──────────────────────────────────────────────
 app = FastAPI(title="Carbon + Recipe API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Ganti dengan URL frontend-mu jika ingin membatasi
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── Request Model ─────────────────────────────────────────────
 class IngredientInput(BaseModel):
     text: str
 
-# ── Endpoints ─────────────────────────────────────────────────
 @app.get("/")
 def health_check():
     return {"status": "ok"}
