@@ -13,11 +13,12 @@ from rapidfuzz import fuzz, process
 from carbon_calculator import calculate_total_carbon_from_items
 import gdown
 import os
-
+from dotenv import load_dotenv
+load_dotenv()
 #===========Mongo IMPORT===============#
 from pymongo import MongoClient
 
-MONGO_URI = "mongodb+srv://anzzanafa:fWZJzU2FGfWlobHY@cluster0.1xeasvn.mongodb.net/ecorecipes?retryWrites=true&w=majority&appName=Cluster0"
+MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI)
 db = client['ecorecipes']
 collection = db['recipes']

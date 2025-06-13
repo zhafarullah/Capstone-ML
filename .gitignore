@@ -9,3 +9,4 @@ __pycache__
 /images/
 mongotest.py
 nltkdwnld.py
+.env
