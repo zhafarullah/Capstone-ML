@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, status
+from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
@@ -15,11 +16,13 @@ import cloudinary
 import cloudinary.uploader
 from pymongo import MongoClient
 
+load_dotenv()
+
 # ─── Konfigurasi Cloudinary ─────────────────────────────
 cloudinary.config(
-    cloud_name="drcz82fa2",
-    api_key="747541653778546",
-    api_secret="0atiXyH54uYPGqW59d9HX1U5S90",
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True
 )
 
@@ -28,9 +31,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ─── Koneksi MongoDB ─────────────────────────────────────
-MONGO_URI = "mongodb+srv://anzzanafa:fWZJzU2FGfWlobHY@cluster0.1xeasvn.mongodb.net/ecorecipes?retryWrites=true&w=majority&appName=Cluster0"
-MONGO_DB = "ecorecipes"
-MONGO_COLLECTION = "recipes"
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_DB = os.getenv("MONGO_DB")
+MONGO_COLLECTION = os.getenv("MONGO_COLLECTION")
 
 client = MongoClient(MONGO_URI)
 db = client[MONGO_DB]

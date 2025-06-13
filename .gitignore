@@ -9,3 +9,4 @@ efficientnet_model.tflite
 converter.py
 /images/
 mongotest.py
+.env
