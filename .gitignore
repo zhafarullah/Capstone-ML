@@ -10,3 +10,5 @@ __pycache__
 mongotest.py
 nltkdwnld.py
 .env
+.venv310/
+.venv314/

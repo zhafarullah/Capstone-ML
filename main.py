@@ -15,13 +15,14 @@ import gdown
 import os
 from dotenv import load_dotenv
 load_dotenv()
-#===========Mongo IMPORT===============#
-from pymongo import MongoClient
-
-MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI)
-db = client['ecorecipes']
-collection = db['recipes']
+# Load dataset from CSV instead of using MongoDB/pymongo
+CSV_PATH = 'nama_file.csv'
+if not os.path.exists(CSV_PATH):
+    raise SystemExit(f"CSV file '{CSV_PATH}' not found. Place it in the project root or update CSV_PATH in main.py")
+try:
+    df_exploded = pd.read_csv(CSV_PATH)
+except Exception as e:
+    raise SystemExit(f"Failed to read '{CSV_PATH}': {e}")
 
 model = load_model('best_ner_bilstm.h5')
 tok2idx = pickle.load(open('tok2idx.pkl', 'rb'))
@@ -29,9 +30,9 @@ le = pickle.load(open('label_encoder.pkl', 'rb'))
 
 MAXLEN = 50
 
-df_exploded = pd.DataFrame(list(collection.find({})))
-if 'cleaned_ingredients' in df_exploded.columns:
-    df_exploded['cleaned_ingredients'] = df_exploded['cleaned_ingredients'].apply(
+# If CSV contained a string representation of lists in 'Cleaned_Ingredients', convert them
+if 'Cleaned_Ingredients' in df_exploded.columns:
+    df_exploded['Cleaned_Ingredients'] = df_exploded['Cleaned_Ingredients'].apply(
         lambda x: ast.literal_eval(x) if isinstance(x, str) else x
     )
 
@@ -111,8 +112,8 @@ def recommend_recipes(text, top_n=5, fuzzy_threshold=75):
     items = parse_ingredients(text)
     pprint(items)
     if not items:
-        return pd.DataFrame(columns=['title_cleaned','instructions_cleaned',
-                                     'cleaned_ingredients','total_recipe_carbon','title_display'])
+        return pd.DataFrame(columns=['Title_Cleaned','Instructions_Cleaned',
+                                     'Cleaned_Ingredients','total_recipe_carbon','title_display'])
     sets=[]
     for it in items:
         qty = parse_number(it['quantity'])
@@ -127,17 +128,17 @@ def recommend_recipes(text, top_n=5, fuzzy_threshold=75):
             mask = mask_name & factors.notna() & ((df_exploded['quantity']*factors)<=avail)
         else:
             mask = mask_name & (df_exploded['unit'].str.lower()==unit)
-        titles=set(df_exploded.loc[mask,'title_cleaned'])
+        titles=set(df_exploded.loc[mask,'Title_Cleaned'])
         if titles: sets.append(titles)
     if not sets: return pd.DataFrame()
     common=set.intersection(*sets)
-    df_meta = df_exploded.drop_duplicates('title_cleaned')[['title_cleaned',
-                                                           'instructions_cleaned',
-                                                           'cleaned_ingredients',
+    df_meta = df_exploded.drop_duplicates('Title_Cleaned')[['Title_Cleaned',
+                                                           'Instructions_Cleaned',
+                                                           'Cleaned_Ingredients',
                                                            'total_recipe_carbon']]
     df_meta['title_display']=df_meta.apply(
-        lambda r: f"{r['title_cleaned']} ({r['total_recipe_carbon']} CO2eq/kg)", axis=1)
-    return df_meta[df_meta['title_cleaned'].isin(common)].head(top_n)
+        lambda r: f"{r['Title_Cleaned']} ({r['total_recipe_carbon']} CO2eq/kg)", axis=1)
+    return df_meta[df_meta['Title_Cleaned'].isin(common)].head(top_n)
 
 # Main flow
 def main():
@@ -160,11 +161,11 @@ def main():
             p=int(input("\nMasukkan nomor resep: "))
             if 1<=p<=len(idx): break
         except: pass
-    sel=idx.iloc[p-1]['title_cleaned']
+    sel=idx.iloc[p-1]['Title_Cleaned']
 
     print(f"\n=== {sel} ===\nInstructions:")
     split_p = re.compile(r'(?<!\b\d)(?<!tsp)(?<!tbsp)\.\s+')
-    inst=idx.iloc[p-1]['instructions_cleaned']
+    inst=idx.iloc[p-1]['Instructions_Cleaned']
     for part in split_p.split(inst):
         s=part.strip().rstrip('.')
         if not s: continue
@@ -174,7 +175,7 @@ def main():
             print(f"  {pref}{ln}")
 
     print("\nIngredients:")
-    for ing in idx.iloc[p-1]['cleaned_ingredients']:
+    for ing in idx.iloc[p-1]['Cleaned_Ingredients']:
         print(f"  - {ing}")
 
     input_amounts = {}
@@ -185,7 +186,7 @@ def main():
         input_amounts.setdefault(it['ingredient'],0.0)
         input_amounts[it['ingredient']]+=qty*UNIT_FACTORS[unit]
 
-    df_sel=df_exploded[df_exploded['title_cleaned']==sel].copy()
+    df_sel=df_exploded[df_exploded['Title_Cleaned']==sel].copy()
     df_sel['factor']=df_sel['unit'].str.lower().map(UNIT_FACTORS)
     df_sel['required_base']=df_sel['quantity']*df_sel['factor']
     used_amounts = df_sel.groupby('pure_name')['required_base'].sum().to_dict()
